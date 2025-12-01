@@ -2,13 +2,9 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USERNAME = 'akshitavidiyala'        // your Docker Hub username
-    pipeline {
-    agent any
-
-    environment {
-        // CHANGE THIS to your Docker Hub repo name
-        DOCKERHUB_REPO = "akshitavidiyala/my-docker-ci-cd-app"
+        // 👇 put your real Docker Hub repo here
+        // example: "akshitavidiyala/docker-ci-cd-demo"
+        DOCKERHUB_REPO = "akshitavidiyala/docker-ci-cd-demo"
     }
 
     stages {
@@ -21,10 +17,10 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    IMAGE_TAG = "${BUILD_NUMBER}"
+                    def imageTag = "${env.BUILD_NUMBER}"
                     sh """
-                        echo "Building image ${DOCKERHUB_REPO}:${IMAGE_TAG} ..."
-                        docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} -t ${DOCKERHUB_REPO}:latest .
+                        echo "Building image ${DOCKERHUB_REPO}:${imageTag} ..."
+                        docker build -t ${DOCKERHUB_REPO}:${imageTag} -t ${DOCKERHUB_REPO}:latest .
                     """
                 }
             }
@@ -33,11 +29,13 @@ pipeline {
         stage('Login & Push to Docker Hub') {
             steps {
                 script {
-                    withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )]) {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'dockerhub-creds',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )
+                    ]) {
                         sh """
                             echo "Logging in to Docker Hub..."
                             echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
@@ -58,5 +56,4 @@ pipeline {
         }
     }
 }
-
 
