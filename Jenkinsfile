@@ -3,8 +3,12 @@ pipeline {
 
     environment {
         DOCKERHUB_USERNAME = 'akshitavidiyala'        // your Docker Hub username
-        IMAGE_NAME = 'my-docker-ci-cd-app'           // your Docker Hub repo name
-        FULL_IMAGE = "docker.io/${DOCKERHUB_USERNAME}/${IMAGE_NAME}"
+    pipeline {
+    agent any
+
+    environment {
+        // CHANGE THIS to your Docker Hub repo name
+        DOCKERHUB_REPO = "akshitavidiyala/my-docker-ci-cd-app"
     }
 
     stages {
@@ -18,18 +22,30 @@ pipeline {
             steps {
                 script {
                     IMAGE_TAG = "${BUILD_NUMBER}"
-                    dockerImage = docker.build("${FULL_IMAGE}:${IMAGE_TAG}")
+                    sh """
+                        echo "Building image ${DOCKERHUB_REPO}:${IMAGE_TAG} ..."
+                        docker build -t ${DOCKERHUB_REPO}:${IMAGE_TAG} -t ${DOCKERHUB_REPO}:latest .
+                    """
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Login & Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-creds') {
-                        dockerImage.push()  // push version tag
-                        sh "docker tag ${FULL_IMAGE}:${BUILD_NUMBER} ${FULL_IMAGE}:latest"
-                        sh "docker push ${FULL_IMAGE}:latest"
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )]) {
+                        sh """
+                            echo "Logging in to Docker Hub..."
+                            echo "\$DOCKER_PASS" | docker login -u "\$DOCKER_USER" --password-stdin
+
+                            echo "Pushing image tags..."
+                            docker push ${DOCKERHUB_REPO}:${BUILD_NUMBER}
+                            docker push ${DOCKERHUB_REPO}:latest
+                        """
                     }
                 }
             }
@@ -38,8 +54,9 @@ pipeline {
 
     post {
         always {
-            sh "docker image prune -f || true"
+            sh 'docker image prune -f || true'
         }
     }
 }
+
 
